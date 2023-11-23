@@ -2,7 +2,7 @@
 
 Bollinger Bands Telegram Screener is a Flask-based web application for real-time cryptocurrency market analysis. It provides insights using Bollinger Bands and sends alerts to a Telegram bot when prices cross the Bollinger Bands.
 
-![Screener Screenshot](images/Screenshot.png)
+![Screener Screenshot](images/Screener.png)
 
 ## Features
 
