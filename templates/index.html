@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Crypto Pairs and Bollinger Bands</title>
+    <!-- Include Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">Cryptocurrency Pairs and Bollinger Bands Status</h1>
+
+        <!-- Timeframe and STD DEV Selection -->
+        <div class="row mb-3">
+            <div class="col">
+                <label for="timeframe">Timeframe:</label>
+                <select id="timeframe" class="form-control">
+                    <option value="1m">1m</option>
+                    <option value="5m">5m</option>
+                    <option value="15m">15m</option>
+                    <option value="30m">30m</option>
+                    <option value="1h">1h</option>
+                    <option value="2h">2h</option>
+                    <option value="4h">4h</option>
+                    <option value="1d">1d</option>
+                    <option value="1w">1w</option>
+                </select>
+            </div>
+            <div class="col">
+                <label for="stddev">Standard Deviation:</label>
+                <select id="stddev" class="form-control">
+                    <option value="1">1</option>
+                    <option value="2" selected>2</option>
+                    <option value="3">3</option>
+                </select>
+            </div>
+        </div>
+
+        <table class="table table-striped" id="cryptoTable">
+            <thead>
+                <tr>
+                    <th>Pair</th>
+                    <th>Status</th>
+                    <th>Current Price</th>
+                    <th>Upper Band</th>
+                    <th>Lower Band</th>
+                    <th>% Diff from Band</th> <!-- New Column for Percentage Difference -->
+                    <th>Alert</th>
+                </tr>
+            </thead>
+            <tbody>
+            <!-- Data will be inserted here -->
+        </tbody>
+        </table>
+    </div>
+    <!-- Include Bootstrap JS and Popper.js -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <script>
+        function getRowColor(color) {
+            switch(color) {
+                case 'above':
+                    return 'table-danger'; // Red color for above upper band
+                case 'below':
+                    return 'table-success'; // Green color for below lower band
+                default:
+                    return ''; // Default color for within the bands
+            }
+        }
+
+        function updateSettings() {
+            const interval = document.getElementById('timeframe').value;
+            const stdDev = parseInt(document.getElementById('stddev').value);
+
+            fetch('/update_settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ interval: interval, std_dev: stdDev }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Settings updated:', data);
+            })
+            .catch(error => {
+                console.error('Error updating settings:', error);
+            });
+        }
+
+        document.getElementById('timeframe').addEventListener('change', updateSettings);
+        document.getElementById('stddev').addEventListener('change', updateSettings);
+
+        // Object to store the toggle state of each symbol
+        let toggleStates = {};
+
+        function updateTable() {
+            fetch('/data')
+                .then(response => response.json())
+                .then(data => {
+                    let tableBody = document.getElementById('cryptoTable').getElementsByTagName('tbody')[0];
+                    tableBody.innerHTML = ''; // Clear existing data
+
+                    data.forEach(([pair, currentPrice, upperBand, lowerBand, status, color, percentageDiff]) => {
+                        let newRow = tableBody.insertRow();
+                        newRow.className = getRowColor(color);
+
+                        let cellData = [pair, status, currentPrice, upperBand, lowerBand, percentageDiff.toFixed(2) + '%'];
+                        cellData.forEach(cellData => {
+                            let cell = newRow.insertCell();
+                            cell.appendChild(document.createTextNode(cellData));
+                        });
+
+                        // Add a cell with a toggle switch for the alert
+                        let toggleCell = newRow.insertCell();
+                        toggleCell.innerHTML = `<div class="custom-control custom-switch">
+                                                    <input type="checkbox" class="custom-control-input symbol-toggle" data-symbol="${pair}" id="toggle-${pair}" ${toggleStates[pair] ? 'checked' : ''}>
+                                                    <label class="custom-control-label" for="toggle-${pair}"></label>
+                                                </div>`;
+                    });
+
+                    // Add event listeners to the toggle switches
+                    document.querySelectorAll('.symbol-toggle').forEach(item => {
+                        item.addEventListener('change', function() {
+                            const symbol = this.getAttribute('data-symbol');
+                            const isActive = this.checked;
+                            toggleStates[symbol] = isActive; // Update the toggle state
+
+                            fetch('/toggle_alert', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ symbol: symbol, active: isActive }),
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                console.log('Alert toggled:', data);
+                            })
+                            .catch(error => {
+                                console.error('Error toggling alert:', error);
+                            });
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+        }
+
+        // Update the table every second
+        setInterval(updateTable, 1000);
+    </script>
+</body>
+</html>
